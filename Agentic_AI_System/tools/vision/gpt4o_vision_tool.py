@@ -1,5 +1,6 @@
 import os
 import json
+import base64
 from core.logger import log
 from openai import OpenAI
 from langchain.tools import tool
@@ -10,43 +11,51 @@ api_key = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=api_key)
 
 class GPT4oVisionTool:
-    def __init__(self):
+    def __init__(self, prompt_path: str | None = None):
         self.name = "gpt4o_vision_tool"
         self.description = (
             "Analysiert ein Bild anhand eines strukturierten Prompts zu Online-Werbung "
             "und liefert eine vollständige JSON-Ausgabe mit visuellen, textuellen und semantischen Elementen."
         )
 
-        prompt_relative_path = os.path.join("prompts", "vision_prompt_v1.txt")
-        prompt_path = os.path.abspath(prompt_relative_path)
+        # Erlaubt alternative Prompts beim Initialisieren
+        if prompt_path is None:
+            prompt_path = os.path.join("prompts", "vision_prompt_v1.txt")
+        elif not os.path.isabs(prompt_path):
+            prompt_path = os.path.join("prompts", prompt_path)
+
+        prompt_path = os.path.abspath(prompt_path)
 
         try:
             with open(prompt_path, "r", encoding="utf-8") as f:
                 self.prompt = f.read()
         except FileNotFoundError:
-            log.error(f"❌ vision_prompt_v1.txt nicht gefunden unter: {prompt_path}")
+            log.error(f"❌ Prompt nicht gefunden unter: {prompt_path}")
             self.prompt = None
 
     def analyze_image(self, image_url: str) -> dict:
-        """
-        Normale Methode für direkten Aufruf (ohne Agent).
-        """
+        """Analysiere ein Bild per URL oder lokalem Pfad."""
         log.info(f"📷 Starte Bildanalyse für: {image_url}")
 
         if not self.prompt:
             return {"error": "Prompt fehlt – konnte nicht geladen werden."}
 
         try:
+            if image_url.startswith("http"):
+                image_dict = {"type": "image_url", "image_url": {"url": image_url, "detail": "high"}}
+            else:
+                with open(image_url, "rb") as f:
+                    b64 = base64.b64encode(f.read()).decode()
+                image_dict = {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{b64}", "detail": "high"},
+                }
+
             response = client.chat.completions.create(
                 model="gpt-4o",
-                messages=[
-                    {"role": "user", "content": [
-                        {"type": "text", "text": self.prompt},
-                        {"type": "image_url", "image_url": {"url": image_url, "detail": "high"}}
-                    ]}
-                ],
+                messages=[{"role": "user", "content": [{"type": "text", "text": self.prompt}, image_dict]}],
                 temperature=0.2,
-                max_tokens=1500
+                max_tokens=1500,
             )
 
             result = response.choices[0].message.content.strip()
