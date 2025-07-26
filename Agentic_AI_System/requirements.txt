@@ -34,5 +34,8 @@ tqdm
 loguru
 requests
 
+# Screenshot utility
+pyppeteer
+
 # Testing & Debugging
 pytest

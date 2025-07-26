@@ -1,0 +1,2 @@
+Fasse die folgenden Analysen zu einem einheitlichen JSON-Resultat zusammen. Alle Analysen beziehen sich auf dasselbe Werbebild, wurden jedoch mit unterschiedlichen Prompts erstellt.
+Gib ausschließlich valides JSON zurück und fasse widersprüchliche Angaben sinnvoll zusammen.
